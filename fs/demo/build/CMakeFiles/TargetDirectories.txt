@@ -1,3 +1,0 @@
-/home/cauchy/comp/user-land-filesystem/fs/demo/build/CMakeFiles/demo.dir
-/home/cauchy/comp/user-land-filesystem/fs/demo/build/CMakeFiles/edit_cache.dir
-/home/cauchy/comp/user-land-filesystem/fs/demo/build/CMakeFiles/rebuild_cache.dir
