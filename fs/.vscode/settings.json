@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "ddriver.h": "c",
+        "ddriver_ctl_user.h": "c"
+    }
+}

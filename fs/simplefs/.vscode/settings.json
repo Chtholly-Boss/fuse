@@ -11,6 +11,10 @@
         "ddriver_ctl_user.h": "c",
         "errno.h": "c",
         "fuse.h": "c",
-        "ddriver.h": "c"
+        "ddriver.h": "c",
+        "bit": "c",
+        "initializer_list": "c",
+        "type_traits": "c",
+        "new": "c"
     }
 }
