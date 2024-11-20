@@ -1,12 +1,12 @@
 
 ========================================================================
 一. 项目编译步骤如下: 
-Step 1. SSH打开./fs/nfs
+Step 1. SSH打开./fs/fs
 Step 2. 打开CMakeLists.txt文件
 Step 3. ctrl + shift + p呼出命令菜单
 Step 4. 输入CMake: Configure
 Step 5. 查看Generator (已用!!!!!标记)
-Step 6. 到nfs/src/nfs.c目录，打断点
+Step 6. 到fs/src/fs.c目录，打断点
 Step 7. 按下F5进行调试
 二. 驱动使用说明: 
 我们已经为同学们安装好了ddriver (disk driver)，支持命令如下
