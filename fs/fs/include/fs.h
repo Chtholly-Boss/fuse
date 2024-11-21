@@ -62,6 +62,7 @@ int dentry_lookup(const char* path, struct fs_dentry** dentry);
 
 int inode_sync(struct fs_inode* inode);
 int dentry_restore(struct fs_dentry* dentry, int ino);
+void inode_alloc(struct fs_inode* inode);
 
 // * disk.c
 int disk_read(int offset, void *out_content, int size);

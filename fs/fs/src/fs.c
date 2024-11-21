@@ -84,8 +84,14 @@ int fs_mkdir(const char* path, mode_t mode) {
 		return ERROR_NOTFOUND;
 	}
 	struct fs_dentry* dir = dentry_create(get_fname(path), FT_DIR);
-	dentry_bind(dir, inode_create());
+	struct fs_inode* inode = inode_create();
+	inode->ino = bitmap_alloc(super.imap, super.params.max_ino);
+	dentry_bind(dir, inode);
+
+	inode_alloc(inode);
 	dentry_register(dir, dentry);
+	inode->dir_cnt++;
+	
 	return ERROR_NONE;
 }
 

@@ -130,7 +130,10 @@ int disk_mount() {
     if (is_init) {
         // ! allocate ino 0 to root
         struct fs_inode *root_inode = inode_create();
-        // for now, just bind
+        // allocate a on-disk inode
+        int ino = bitmap_alloc(super.imap,super.params.max_ino);
+        root_inode->ino = ino;
+        
         dentry_bind(root, root_inode);
         inode_sync(root_inode);
     }

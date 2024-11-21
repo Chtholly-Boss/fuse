@@ -18,16 +18,15 @@ struct fs_dentry* dentry_create(const char* name, FileType ftype)
     return dentry;    
 }
 
+/**
+ * @brief Create an In-Memory empty inode, no ino assigned
+ */
 struct fs_inode* inode_create()
 {
-    int ino = bitmap_alloc(super.imap, super.params.max_ino);
-    if (ino < 0) {
-        return NULL;
-    }
     struct fs_inode* inode = (struct fs_inode*)malloc(sizeof(struct fs_inode));
     memset(inode, 0, sizeof(struct fs_inode));
 
-    inode->ino = ino;
+    inode->ino = -1;
 
     inode->dir_cnt = 0;
     inode->self = NULL;
@@ -36,6 +35,9 @@ struct fs_inode* inode_create()
     return inode;
 }
 
+/**
+ * @brief Bind dentry and inode, assign inode::ino to dentry::ino
+ */
 void dentry_bind(struct fs_dentry* dentry, struct fs_inode* inode)
 {
     dentry->self = inode;
@@ -44,16 +46,15 @@ void dentry_bind(struct fs_dentry* dentry, struct fs_inode* inode)
     dentry->ino = inode->ino;
 }
 
+/**
+ * @brief Register a dentry to its parent dentry
+ * @attention Caller should allocate data blocks for the parent dentry
+ */
 void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent)
 {
     struct fs_inode* inode = parent->self;
 
-    int is_init = (inode->childs == NULL);
-    if (is_init) {
-        inode->dno = bitmap_alloc(super.dmap, super.params.max_dno);
-    }
-
-    if (is_init) {
+    if (inode->childs == NULL) {
         inode->childs = dentry;
     }
     else {
@@ -62,8 +63,6 @@ void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent)
     }
 
     dentry->parent = parent;
-
-    inode->dir_cnt++;
 }
 
 // Get file name from path
@@ -220,21 +219,24 @@ int dentry_restore(struct fs_dentry* dentry, int ino)
             child = dentry_create(child_d.name, child_d.ftype);
             child->ino = child_d.ino;
 
-            child_inode = (struct fs_inode*)malloc(sizeof(struct fs_inode));
-            child->self = child_inode;
-            child_inode->self = child;
+            dentry_bind(child, inode_create());
 
-            // ! directly call this will cause duplicate dno
-            // dentry_regiter(child, dentry); // register child to parent
-            if (inode->childs == NULL) {
-                inode->childs = child;
-            }
-            else {
-                child->next = inode->childs;
-                inode->childs = child;
-            }
-            child->parent = dentry;
+            dentry_register(child, dentry); // register child to parent
         }
 
+    }
+}
+
+/**
+ * @brief Allocate data block for inode if needed
+ * @attention should be called whenever new data is written to inode
+ */
+void inode_alloc(struct fs_inode* inode)
+{
+    struct fs_dentry* dentry = inode->self;
+    if (dentry->ftype == FT_DIR) {
+        if (inode->childs == NULL) {
+            inode->dno = bitmap_alloc(super.dmap, super.params.max_dno);
+        }
     }
 }
