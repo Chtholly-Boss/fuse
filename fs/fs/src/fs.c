@@ -62,8 +62,8 @@ void* fs_init(struct fuse_conn_info * conn_info) {
  */
 void fs_destroy(void* p) {
 	/* TODO: 在这里进行卸载 */
-	// disk_umount();
-	ddriver_close(super.fd);
+	disk_umount();
+	// ddriver_close(super.fd);
 	return;
 }
 

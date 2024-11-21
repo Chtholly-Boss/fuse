@@ -234,7 +234,6 @@ int dentry_restore(struct fs_dentry* dentry, int ino)
                 inode->childs = child;
             }
             child->parent = dentry;
-            inode->dir_cnt++;
         }
 
     }

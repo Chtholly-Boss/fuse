@@ -124,18 +124,18 @@ int disk_mount() {
     }
     super.imap = bitmap_init(super.params.size_block * super_d.imap.blocks);
     super.dmap = bitmap_init(super.params.size_block * super_d.dmap.blocks);
-    disk_read(super.imap_off, super.imap, super.params.size_block * super_d.imap.blocks);
-    disk_read(super.dmap_off, super.dmap, super.params.size_block * super_d.dmap.blocks);
+    disk_read(super.imap_off, super.imap, sizeof(super.imap));
+    disk_read(super.dmap_off, super.dmap, sizeof(super.dmap));
 
     if (is_init) {
         // ! allocate ino 0 to root
         struct fs_inode *root_inode = inode_create();
         // for now, just bind
         dentry_bind(root, root_inode);
-        // inode_sync(root_inode);
+        inode_sync(root_inode);
     }
 
-    // dentry_restore(root, 0);
+    dentry_restore(root, 0);
 
     return ERROR_NONE;
 }
