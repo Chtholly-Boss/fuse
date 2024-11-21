@@ -42,7 +42,7 @@ int disk_write(int offset, void *in_content, int size) {
     int size_rounded = DISK_ROUND_UP(size);
 
     uint8_t *buffer = (uint8_t*) malloc(size_rounded);
-    // ! to avoid overwriting, we need to read the data first
+
     disk_read(offset_rounded, buffer, size_rounded);
 
     int bias = offset - offset_rounded;
@@ -62,13 +62,9 @@ int disk_write(int offset, void *in_content, int size) {
 }
 
 /**
- * @brief Construct in-mem super correctly
+ * @brief mount disk
  */
 int disk_mount() {
-    // root for path resolution
-    // because root is not a subdirectory of anything, we should create a dentry every time we mount
-    struct fs_dentry *root = dentry_create("/", FT_DIR);
-    super.root = root;
 
     super.fd = ddriver_open(fs_options.device);
 
@@ -80,6 +76,8 @@ int disk_mount() {
     disk_read(0, &super_d, sizeof(struct fs_super_d));
 
     int is_init = (super_d.magic != FS_MAGIC);
+
+    // Superblock Initialization
     if (is_init) {
         // Initialize the disk
         super_d.magic = FS_MAGIC;
@@ -114,6 +112,7 @@ int disk_mount() {
     super.inodes_off = super_d.inodes.offset;
     super.data_off = super_d.data.offset;
 
+    // Bitmap Initialization
     if (is_init) {
         super.imap = bitmap_init(super.params.size_block * super_d.imap.blocks);
         super.dmap = bitmap_init(super.params.size_block * super_d.dmap.blocks);
@@ -127,22 +126,27 @@ int disk_mount() {
     disk_read(super.imap_off, super.imap, sizeof(super.imap));
     disk_read(super.dmap_off, super.dmap, sizeof(super.dmap));
 
+    // Root Entry Initialization
+    struct fs_dentry *root = dentry_create("/", FT_DIR);
+    super.root = root;
     if (is_init) {
-        // ! allocate ino 0 to root
+
         struct fs_inode *root_inode = inode_create();
-        // allocate a on-disk inode
+
         int ino = bitmap_alloc(super.imap,super.params.max_ino);
         root_inode->ino = ino;
-        
+
         dentry_bind(root, root_inode);
         inode_sync(root_inode);
     }
-
     dentry_restore(root, 0);
 
     return ERROR_NONE;
 }
 
+/**
+ * @brief Unmount the disk
+ */
 int disk_umount() {
     inode_sync(super.root->self);
 

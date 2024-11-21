@@ -2,6 +2,9 @@
 
 extern struct fs_super super;
 
+/**
+ * @brief Create an In-Memory empty dentry, no inode binded
+ */
 struct fs_dentry* dentry_create(const char* name, FileType ftype)
 {
     struct fs_dentry* dentry = (struct fs_dentry*)malloc(sizeof(struct fs_dentry));
@@ -65,9 +68,12 @@ void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent)
     dentry->parent = parent;
 }
 
-// Get file name from path
-// e.g. /home/user/file.txt -> file.txt
-char* get_fname(const char* path)
+/**
+ * @brief Get the file name from path
+ * @example / -> /
+ * @example /home/user -> user
+ */
+char* get_fname(char* path)
 {
     if (strcmp(path, "/") == 0) {
         return "/";
@@ -76,10 +82,13 @@ char* get_fname(const char* path)
     return fname;
 }
 
-// Get path level from path
-// e.g. / -> 0
-// e.g. /home/user/file.txt -> 2
-int get_path_level(const char* path)
+/**
+ * @brief Get the level of path
+ * @example / -> 0
+ * @example /home -> 1
+ * @example /home/user -> 2
+ */
+int get_path_level(char* path)
 {
     if (strcmp(path, "/") == 0) {
         return 0;
@@ -96,7 +105,10 @@ int get_path_level(const char* path)
     return level;
 }
 
-struct fs_dentry *dentries_find(struct fs_dentry *dentries, char *fname)
+/**
+ * @brief Find dentry from dentries that match the given name
+ */
+struct fs_dentry *dentry_find(struct fs_dentry *dentries, char *fname)
 {
     struct fs_dentry *dentry = dentries;
     while (dentry != NULL) {
@@ -107,7 +119,10 @@ struct fs_dentry *dentries_find(struct fs_dentry *dentries, char *fname)
     }
     return NULL;
 }
-// Get the dentry at index
+
+/**
+ * @brief Get dentry from dentries by index
+ */
 struct fs_dentry *dentry_get(struct fs_dentry* dentries, int index)
 {
     struct fs_dentry *dentry = dentries;
@@ -125,7 +140,7 @@ struct fs_dentry *dentry_get(struct fs_dentry* dentries, int index)
  * @brief Resolve path to dentry
  * @return 0 if found, and put dentry to *dentry, else put parent dentry to *dentry
  */
-int dentry_lookup(const char* path, struct fs_dentry** dentry)
+int dentry_lookup(char* path, struct fs_dentry** dentry)
 {
     struct fs_dentry *ptr = super.root; // * start from root
     *dentry = ptr;
@@ -137,7 +152,7 @@ int dentry_lookup(const char* path, struct fs_dentry** dentry)
 
     for (int i = 0; i < levels; i++) {
         // Find fname in ptr's subdirecties
-        ptr = dentries_find(ptr->self->childs, fname);
+        ptr = dentry_find(ptr->self->childs, fname);
         if (ptr == NULL) {
             return -1;
         }
@@ -187,6 +202,9 @@ int inode_sync(struct fs_inode* inode)
     return ERROR_NONE;
 }
 
+/**
+ * @brief Restore dentry from disk
+ */
 int dentry_restore(struct fs_dentry* dentry, int ino)
 {
     struct fs_inode_d inode_d;
@@ -212,7 +230,6 @@ int dentry_restore(struct fs_dentry* dentry, int ino)
 
         struct fs_dentry_d child_d;
         struct fs_dentry* child;
-        struct fs_inode* child_inode;
 
         for (int i = 0; i < inode->dir_cnt; i++) {
             disk_read(offset + i * sizeof(struct fs_dentry_d), &child_d, sizeof(struct fs_dentry_d));

@@ -1,10 +1,9 @@
 #include "../include/fs.h"
 
-/**
- * A Bitmap in memory is an array of bytes, each byte represents 8 bits.
- * We can directly use uint8_t to represent a byte.
- */
 
+/**
+ * @brief Create a bitmap with given size and initialize it to 0.
+ */
 uint8_t *bitmap_init(uint32_t size) {
     uint32_t bitmap_size = (size + 7) / 8;
     uint8_t *bitmap = (uint8_t *)malloc(bitmap_size);
@@ -16,7 +15,8 @@ uint8_t *bitmap_init(uint32_t size) {
 }
 
 /**
- * Caller should ensure index is valid.
+ * @brief Set the bit at given index to 1.
+ * @attention Caller should ensure index is valid.
  */
 void bitmap_set(uint8_t *bitmap, uint32_t index) {
     uint32_t byte_index = index / 8;
@@ -25,7 +25,8 @@ void bitmap_set(uint8_t *bitmap, uint32_t index) {
 }
 
 /**
- * Caller should ensure index is valid.
+ * @brief Set the bit at given index to 0.
+ * @attention Caller should ensure index is valid.
  */
 void bitmap_clear(uint8_t *bitmap, uint32_t index) {
     uint32_t byte_index = index / 8;
@@ -34,7 +35,7 @@ void bitmap_clear(uint8_t *bitmap, uint32_t index) {
 }
 
 /**
- * @param size: the size of bitmap
+ * @brief Find the first zero bit slower than size in the bitmap.
  */
 int bitmap_find_first_zero(uint8_t *bitmap, uint32_t size) {
     int ret = -1;
@@ -55,6 +56,9 @@ int bitmap_find_first_zero(uint8_t *bitmap, uint32_t size) {
     return ERROR_NOSPACE;
 }
 
+/**
+ * @brief Allocate a free block in the bitmap, set it to 1 and return its index.
+ */
 int bitmap_alloc(uint8_t *bitmap, uint32_t size) {
     int index = bitmap_find_first_zero(bitmap, size);
     if (index == ERROR_NOSPACE) {

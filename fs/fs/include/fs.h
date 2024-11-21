@@ -54,11 +54,11 @@ struct fs_dentry* dentry_create(const char* name, FileType ftype);
 struct fs_inode* inode_create();
 void dentry_bind(struct fs_dentry* dentry, struct fs_inode* inode);
 void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent);
-char* get_fname(const char* path);
+char* get_fname(char* path);
 
 struct fs_dentry *dentries_find(struct fs_dentry *dentries, char *fname);
 struct fs_dentry *dentry_get(struct fs_dentry* dentries, int index);
-int dentry_lookup(const char* path, struct fs_dentry** dentry);
+int dentry_lookup(char* path, struct fs_dentry** dentry);
 
 int inode_sync(struct fs_inode* inode);
 int dentry_restore(struct fs_dentry* dentry, int ino);

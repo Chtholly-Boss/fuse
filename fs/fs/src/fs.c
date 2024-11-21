@@ -49,7 +49,7 @@ static struct fuse_operations operations = {
  * @return void*
  */
 void* fs_init(struct fuse_conn_info * conn_info) {
-	/* TODO: 在这里进行挂载 */
+	// * Already Done
 	disk_mount();
 	return NULL;
 }
@@ -61,9 +61,8 @@ void* fs_init(struct fuse_conn_info * conn_info) {
  * @return void
  */
 void fs_destroy(void* p) {
-	/* TODO: 在这里进行卸载 */
+	// * Already Done
 	disk_umount();
-	// ddriver_close(super.fd);
 	return;
 }
 
@@ -75,7 +74,7 @@ void fs_destroy(void* p) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_mkdir(const char* path, mode_t mode) {
-	/* TODO: 解析路径，创建目录 */
+	// * Already Done
 	struct fs_dentry* dentry;
 	if (dentry_lookup(path, &dentry) == 0) {
 		return ERROR_EXISTS;
@@ -150,8 +149,9 @@ int fs_getattr(const char* path, struct stat * fs_stat) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_readdir(const char * path, void * buf, fuse_fill_dir_t filler, off_t offset,
-			    		 struct fuse_file_info * fi) {
-    /* TODO: 解析路径，获取目录的Inode，并读取目录项，利用filler填充到buf，可参考/fs/simplefs/sfs.c的sfs_readdir()函数实现 */
+			    		 struct fuse_file_info * fi)
+{
+	// * already done
 	struct fs_dentry* dentry;
 	if (dentry_lookup(path, &dentry) != 0) {
 		return ERROR_NOTFOUND;
