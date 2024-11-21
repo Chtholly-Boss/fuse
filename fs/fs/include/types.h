@@ -41,7 +41,6 @@ struct fs_inode {
 
     // * Regular File Structure *
     int size;
-    uint8_t *data[MAX_BLOCK_PER_INODE];
     uint32_t dno_reg[MAX_BLOCK_PER_INODE];
 };
 

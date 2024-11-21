@@ -48,12 +48,14 @@ int fs_opendir(const char *, struct fuse_file_info *);
 // * bitmap.c
 uint8_t *bitmap_init(uint32_t size);
 int bitmap_alloc(uint8_t *bitmap, uint32_t size);
+void bitmap_clear(uint8_t *bitmap, uint32_t index);
 
 // * file.c
 struct fs_dentry *dentry_create(const char *name, FileType ftype);
 struct fs_inode *inode_create();
 void dentry_bind(struct fs_dentry *dentry, struct fs_inode *inode);
 void dentry_register(struct fs_dentry *dentry, struct fs_dentry *parent);
+void dentry_unregister(struct fs_dentry* dentry);
 char *get_fname(char *path);
 int file_read(struct fs_inode* file, int offset, void *buf, int size);
 int file_write(struct fs_inode* file, int offset, void *buf, int size);
@@ -66,6 +68,7 @@ int inode_sync(struct fs_inode *inode);
 int dentry_restore(struct fs_dentry *dentry, int ino);
 void inode_alloc(struct fs_inode *inode);
 
+int dentry_delete(struct fs_dentry* dentry);
 // * disk.c
 int disk_read(int offset, void *out_content, int size);
 int disk_write(int offset, void *in_content, int size);

@@ -31,7 +31,7 @@ static struct fuse_operations operations = {
 	.read = fs_read,								  	 /* 读文件 */
 	.utimens = fs_utimens,				 /* 修改时间，忽略，避免touch报错 */
 	.truncate = fs_truncate,						  		 /* 改变文件大小 */
-	.unlink = NULL,							  		 /* 删除文件 */
+	.unlink = fs_unlink,							  		 /* 删除文件 */
 	.rmdir	= fs_rmdir,							  		 /* 删除目录， rm -r */
 	.rename = fs_rename,							  		 /* 重命名，mv */
 
@@ -84,7 +84,7 @@ int fs_mkdir(const char* path, mode_t mode) {
 	inode->ino = bitmap_alloc(super.imap, super.params.max_ino);
 	dentry_bind(dir, inode);
 
-	inode_alloc(inode);
+	inode_alloc(dentry->self);
 	dentry_register(dir, dentry);
 	dentry->self->dir_cnt++;
 	
@@ -267,8 +267,13 @@ int fs_read(const char* path, char* buf, size_t size, off_t offset,
  * @return int 0成功，否则返回对应错误号
  */
 int fs_unlink(const char* path) {
-	/* 选做 */
-	return 0;
+	struct fs_dentry* file;
+	if (dentry_lookup(path, &file) != 0) {
+		return ERROR_NOTFOUND;
+	}
+	dentry_delete(file);
+
+	return ERROR_NONE;
 }
 
 /**
@@ -284,7 +289,13 @@ int fs_unlink(const char* path) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_rmdir(const char* path) {
-	/* 选做 */
+
+	struct fs_dentry* file;
+	if (dentry_lookup(path, &file) != 0) {
+		return ERROR_NOTFOUND;
+	}
+	dentry_delete(file);
+
 	return 0;
 }
 

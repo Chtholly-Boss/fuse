@@ -43,7 +43,6 @@ struct fs_inode* inode_create()
     for (int i = 0; i < MAX_BLOCK_PER_INODE; i++) {
         inode->dno_reg[i] = -1;
     }
-    memset(inode->data, 0, sizeof(inode->data));
 
     return inode;
 }
@@ -82,6 +81,23 @@ void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent)
     dentry->parent = parent;
 }
 
+void dentry_unregister(struct fs_dentry* dentry)
+{
+    struct fs_dentry* parent = dentry->parent;
+    struct fs_inode* inode = parent->self;
+
+    if (inode->childs == dentry) {
+        inode->childs = dentry->next;
+    }
+    else {
+        struct fs_dentry* ptr = inode->childs;
+        while (ptr->next != dentry) {
+            ptr = ptr->next;
+        }
+        ptr->next = dentry->next;
+    }
+    inode->dir_cnt--;
+}
 /**
  * @brief Get the file name from path
  * @example / -> /
@@ -359,5 +375,30 @@ int file_write(struct fs_inode* file, int offset, void *buf, int size)
         );
         blk_ptr++;
     }
+    return ERROR_NONE;
+}
+
+int dentry_delete(struct fs_dentry* dentry)
+{
+    dentry_unregister(dentry);
+    if (dentry->ftype == FT_REG) {
+        for (int i = 0; i < MAX_BLOCK_PER_INODE; i++) {
+            if (dentry->self->dno_reg[i] != -1) {
+                bitmap_clear(super.dmap, dentry->self->dno_reg[i]);
+            }
+        }
+    }
+    if (dentry->ftype == FT_DIR) {
+        for (int i = 0; i < dentry->self->dir_cnt; i++){
+            dentry_delete(dentry->self->childs);
+        }
+        if (dentry->self->dno_dir != -1){
+            bitmap_clear(super.dmap, dentry->self->dno_dir);
+        }
+    }
+
+    bitmap_clear(super.imap, dentry->self->ino);
+    free(dentry->self);
+    free(dentry);
     return ERROR_NONE;
 }
