@@ -62,9 +62,8 @@ void* fs_init(struct fuse_conn_info * conn_info) {
  */
 void fs_destroy(void* p) {
 	/* TODO: 在这里进行卸载 */
-	
+	// disk_umount();
 	ddriver_close(super.fd);
-
 	return;
 }
 
@@ -86,7 +85,7 @@ int fs_mkdir(const char* path, mode_t mode) {
 	}
 	struct fs_dentry* dir = dentry_create(get_fname(path), FT_DIR);
 	dentry_bind(dir, inode_create());
-	dentry_regiter(dir, dentry);
+	dentry_register(dir, dentry);
 	return ERROR_NONE;
 }
 

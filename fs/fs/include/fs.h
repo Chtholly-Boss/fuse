@@ -20,6 +20,7 @@
 
 #define ROUND_DOWN(value, round)    ((value) % (round) == 0 ? (value) : ((value) / (round)) * (round))
 #define ROUND_UP(value, round)      ((value) % (round) == 0 ? (value) : ((value) / (round) + 1) * (round))
+
 /******************************************************************************
 * SECTION: fs.c
 *******************************************************************************/
@@ -50,12 +51,22 @@ int bitmap_alloc(uint8_t *bitmap, uint32_t size);
 
 // * file.c
 struct fs_dentry* dentry_create(const char* name, FileType ftype);
-struct fs_dentry *dentry_get(struct fs_dentry* dentries, int index);
+struct fs_inode* inode_create();
 void dentry_bind(struct fs_dentry* dentry, struct fs_inode* inode);
-void dentry_regiter(struct fs_dentry* dentry, struct fs_dentry* parent);
+void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent);
+char* get_fname(const char* path);
+
+struct fs_dentry *dentries_find(struct fs_dentry *dentries, char *fname);
+struct fs_dentry *dentry_get(struct fs_dentry* dentries, int index);
 int dentry_lookup(const char* path, struct fs_dentry** dentry);
 
-struct fs_inode* inode_create();
-char* get_fname(const char* path);
+int inode_sync(struct fs_inode* inode);
+int dentry_restore(struct fs_dentry* dentry, int ino);
+
+// * disk.c
+int disk_read(int offset, void *out_content, int size);
+int disk_write(int offset, void *in_content, int size);
+int disk_mount();
+int disk_umount();
 
 #endif  /* _fs_H_ */

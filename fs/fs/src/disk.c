@@ -132,7 +132,40 @@ int disk_mount() {
         struct fs_inode *root_inode = inode_create();
         // for now, just bind
         dentry_bind(root, root_inode);
+        // inode_sync(root_inode);
     }
 
+    // dentry_restore(root, 0);
+
+    return ERROR_NONE;
+}
+
+int disk_umount() {
+    inode_sync(super.root->self);
+
+    struct fs_super_d super_d;
+    memcpy(&super_d.param, &super.params, sizeof(DiskParam));
+    super_d.magic = FS_MAGIC;
+    super_d.super.offset = super.super_off;
+    super_d.super.blocks = 1;
+    super_d.imap.offset = super.imap_off;
+    super_d.imap.blocks = 1;
+    super_d.dmap.offset = super.dmap_off;
+    super_d.dmap.blocks = 1;
+    super_d.inodes.offset = super.inodes_off;
+    super_d.inodes.blocks = 64; 
+    super_d.data.offset = super.data_off;
+    super_d.data.blocks = 4029; 
+
+    disk_write(0, &super_d, sizeof(struct fs_super_d));
+
+    // Write Bitmap
+    disk_write(super.imap_off, super.imap, super.params.size_block * super_d.imap.blocks);
+    disk_write(super.dmap_off, super.dmap, super.params.size_block * super_d.dmap.blocks);
+
+    free(super.imap);
+    free(super.dmap);
+
+    ddriver_close(super.fd);
     return ERROR_NONE;
 }

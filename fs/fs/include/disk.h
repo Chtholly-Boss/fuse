@@ -27,6 +27,3 @@ struct fs_super_d {
     DiskUnit data;
 };
 
-int disk_read(int offset, void *out_content, int size);
-int disk_write(int offset, void *in_content, int size);
-int disk_mount();

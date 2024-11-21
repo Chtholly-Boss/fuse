@@ -44,11 +44,16 @@ void dentry_bind(struct fs_dentry* dentry, struct fs_inode* inode)
     dentry->ino = inode->ino;
 }
 
-void dentry_regiter(struct fs_dentry* dentry, struct fs_dentry* parent)
+void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent)
 {
     struct fs_inode* inode = parent->self;
 
-    if (inode->childs == NULL) {
+    int is_init = (inode->childs == NULL);
+    if (is_init) {
+        inode->dno = bitmap_alloc(super.dmap, super.params.max_dno);
+    }
+
+    if (is_init) {
         inode->childs = dentry;
     }
     else {
@@ -141,4 +146,96 @@ int dentry_lookup(const char* path, struct fs_dentry** dentry)
         fname = strtok(NULL, "/");
     }
     return 0;
+}
+
+/**
+ * @brief Sync inode to disk
+ */
+int inode_sync(struct fs_inode* inode)
+{
+    struct fs_inode_d inode_d;
+
+    inode_d.ino = inode->ino;
+    inode_d.dir_cnt = inode->dir_cnt;
+    inode_d.dno = inode->dno;
+
+    // Write inode to disk
+    disk_write(
+        (super.inodes_off + inode->ino * sizeof(struct fs_inode_d)),
+        &inode_d,
+        sizeof(struct fs_inode_d)
+    );
+    if (inode->self->ftype == FT_DIR) {
+        // Write dentry to disk
+        struct fs_dentry* child = inode->childs;
+        struct fs_dentry_d child_d;
+        int offset = super.data_off + inode->dno * super.params.size_block;
+        while (child != NULL) {
+            memcpy(child_d.name, child->name, MAX_NAME_LEN);
+            child_d.ino = child->ino;
+            child_d.ftype = child->ftype;
+
+            disk_write(offset, &child_d, sizeof(struct fs_dentry_d));
+
+            if (child->self != NULL) {
+                inode_sync(child->self);
+            }
+
+            child = child->next;
+            offset += sizeof(struct fs_dentry_d);
+        }
+    }
+    return ERROR_NONE;
+}
+
+int dentry_restore(struct fs_dentry* dentry, int ino)
+{
+    struct fs_inode_d inode_d;
+
+    disk_read(
+        (super.inodes_off + ino * sizeof(struct fs_inode_d)),
+        &inode_d,
+        sizeof(struct fs_inode_d)
+    );
+
+    struct fs_inode* inode = (struct fs_inode*)malloc(sizeof(struct fs_inode));
+    inode->self = dentry;
+    inode->ino = inode_d.ino;
+    inode->dir_cnt = inode_d.dir_cnt;
+    inode->dno = inode_d.dno;
+    inode->childs = NULL;
+
+    dentry->self = inode;
+    dentry->ino = inode_d.ino;
+    
+    if (dentry->ftype == FT_DIR) {
+        int offset = super.data_off + inode->dno * super.params.size_block;
+
+        struct fs_dentry_d child_d;
+        struct fs_dentry* child;
+        struct fs_inode* child_inode;
+
+        for (int i = 0; i < inode->dir_cnt; i++) {
+            disk_read(offset + i * sizeof(struct fs_dentry_d), &child_d, sizeof(struct fs_dentry_d));
+            child = dentry_create(child_d.name, child_d.ftype);
+            child->ino = child_d.ino;
+
+            child_inode = (struct fs_inode*)malloc(sizeof(struct fs_inode));
+            child->self = child_inode;
+            child_inode->self = child;
+
+            // ! directly call this will cause duplicate dno
+            // dentry_regiter(child, dentry); // register child to parent
+            if (inode->childs == NULL) {
+                inode->childs = child;
+            }
+            else {
+                child->next = inode->childs;
+                inode->childs = child;
+            }
+            child->parent = dentry;
+            inode->dir_cnt++;
+        }
+
+    }
 }

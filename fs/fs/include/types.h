@@ -36,6 +36,8 @@ struct fs_inode {
     int dir_cnt; // number of sub dentries
     struct fs_dentry *self; 
     struct fs_dentry *childs; // linked list of sub dentries
+    // * Data Storage *
+    uint32_t dno; // data block number
 };
 
 struct fs_dentry {
@@ -53,18 +55,14 @@ struct fs_inode_d {
     uint32_t ino;
     // * Directory Structure *
     int dir_cnt; // number of sub dentries
-    struct fs_dentry *self; 
-    struct fs_dentry *childs; // linked list of sub dentries
+
+    // * Data Storage *
+    uint32_t dno; // data block number
 };
 
 struct fs_dentry_d {
     FileType ftype;
     char     name[MAX_NAME_LEN];
     uint32_t ino;
-
-    struct fs_dentry *parent;
-    struct fs_dentry *next;
-
-    struct fs_inode *self;
 };
 #endif /* _TYPES_H_ */
