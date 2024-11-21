@@ -96,6 +96,10 @@ void dentry_unregister(struct fs_dentry* dentry)
         }
         ptr->next = dentry->next;
     }
+
+    dentry->parent = NULL;
+    dentry->next = NULL;
+    
     inode->dir_cnt--;
 }
 /**

@@ -72,11 +72,11 @@ void fs_destroy(void* p) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_mkdir(const char* path, mode_t mode) {
-	struct fs_dentry* dentry;
-	if (dentry_lookup(path, &dentry) == 0) {
+	struct fs_dentry* parent;
+	if (dentry_lookup(path, &parent) == 0) {
 		return ERROR_EXISTS;
 	}
-	if (dentry->ftype != FT_DIR) {
+	if (parent->ftype != FT_DIR) {
 		return ERROR_NOTFOUND;
 	}
 	struct fs_dentry* dir = dentry_create(get_fname(path), FT_DIR);
@@ -84,9 +84,9 @@ int fs_mkdir(const char* path, mode_t mode) {
 	inode->ino = bitmap_alloc(super.imap, super.params.max_ino);
 	dentry_bind(dir, inode);
 
-	inode_alloc(dentry->self);
-	dentry_register(dir, dentry);
-	dentry->self->dir_cnt++;
+	inode_alloc(parent->self);
+	dentry_register(dir, parent);
+	parent->self->dir_cnt++;
 	
 	return ERROR_NONE;
 }
@@ -170,11 +170,16 @@ int fs_readdir(const char * path, void * buf, fuse_fill_dir_t filler, off_t offs
  * @return int 0成功，否则返回对应错误号
  */
 int fs_mknod(const char* path, mode_t mode, dev_t dev) {
-	struct fs_dentry* dentry;
-	if (dentry_lookup(path, &dentry) == 0) {
+
+	if (S_ISDIR(mode)) {
+		return fs_mkdir(path, mode);
+	}
+
+	struct fs_dentry* parent;
+	if (dentry_lookup(path, &parent) == 0) {
 		return ERROR_EXISTS;
 	}
-	if (dentry->ftype != FT_DIR) {
+	if (parent->ftype != FT_DIR) {
 		return ERROR_NOTFOUND;
 	}
 	struct fs_dentry* new_file = dentry_create(get_fname(path), FT_REG);
@@ -182,10 +187,10 @@ int fs_mknod(const char* path, mode_t mode, dev_t dev) {
 	inode->ino = bitmap_alloc(super.imap, super.params.max_ino);
 	dentry_bind(new_file, inode);
 
-	inode_alloc(dentry->self);
-	dentry_register(new_file, dentry);
+	inode_alloc(parent->self);
+	dentry_register(new_file, parent);
 
-	dentry->self->dir_cnt++;
+	parent->self->dir_cnt++;
 	return ERROR_NONE;
 }
 
@@ -223,7 +228,6 @@ int fs_write(const char* path, const char* buf, size_t size, off_t offset,
 		return ERROR_ISDIR;
 	}
 	struct fs_inode* inode = file->self;
-	// TODO: Write to inode
 
 	if (inode->size < offset) {
 		return ERROR_SEEK;
@@ -255,7 +259,6 @@ int fs_read(const char* path, char* buf, size_t size, off_t offset,
 		return ERROR_ISDIR;
 	}
 	struct fs_inode* inode = file->self;
-	// TODO: Read from inode
 	file_read(inode, offset, buf, size);	
 	return size;			   
 }
@@ -307,8 +310,32 @@ int fs_rmdir(const char* path) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_rename(const char* from, const char* to) {
-	/* 选做 */
-	return 0;
+	struct fs_dentry* from_file;
+	if (dentry_lookup(from, &from_file) != 0) {
+		return ERROR_NOTFOUND;
+	}
+
+	if (strcmp(from, to) == 0) {
+		return ERROR_NONE;
+	}
+
+	struct fs_dentry* parent;
+	if (dentry_lookup(to, &parent) == 0) {
+		return ERROR_EXISTS;
+	}
+
+	dentry_unregister(from_file);
+
+	inode_alloc(parent->self);
+	dentry_register(from_file, parent);
+
+	parent->self->dir_cnt++;
+
+	char* fname = get_fname(to);
+
+	memcpy(from_file->name, fname, strlen(fname) + 1);
+
+	return ERROR_NONE;
 }
 
 /**
