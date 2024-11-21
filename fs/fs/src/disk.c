@@ -102,7 +102,7 @@ int disk_mount() {
         super_d.inodes.blocks = 64; // TODO
         
         super_d.data.offset = super_d.inodes.offset + super_d.inodes.blocks * super_d.param.size_block;
-        super_d.data.blocks = 4029; // TODO
+        super_d.data.blocks = 4096 - super_d.super.blocks - super_d.imap.blocks - super_d.dmap.blocks - super_d.inodes.blocks; // TODO
     }
 
     memcpy(&super.params, &super_d.param, sizeof(DiskParam));
@@ -114,15 +114,15 @@ int disk_mount() {
 
     // Bitmap Initialization
     if (is_init) {
-        super.imap = bitmap_init(super.params.size_block * super_d.imap.blocks);
-        super.dmap = bitmap_init(super.params.size_block * super_d.dmap.blocks);
-        disk_write(super.imap_off, super.imap, super.params.size_block * super_d.imap.blocks);
-        disk_write(super.dmap_off, super.dmap, super.params.size_block * super_d.dmap.blocks);
+        super.imap = bitmap_init(super.params.size_block * super_d.imap.blocks * 8);
+        super.dmap = bitmap_init(super.params.size_block * super_d.dmap.blocks * 8);
+        disk_write(super.imap_off, super.imap, sizeof (super.imap));
+        disk_write(super.dmap_off, super.dmap, sizeof (super.dmap));
         free(super.imap);
         free(super.dmap);
     }
-    super.imap = bitmap_init(super.params.size_block * super_d.imap.blocks);
-    super.dmap = bitmap_init(super.params.size_block * super_d.dmap.blocks);
+    super.imap = bitmap_init(super.params.size_block * super_d.imap.blocks * 8);
+    super.dmap = bitmap_init(super.params.size_block * super_d.dmap.blocks * 8);
     disk_read(super.imap_off, super.imap, sizeof(super.imap));
     disk_read(super.dmap_off, super.dmap, sizeof(super.dmap));
 
@@ -137,6 +137,7 @@ int disk_mount() {
         root_inode->ino = ino;
 
         dentry_bind(root, root_inode);
+        root_inode->dno_dir = bitmap_alloc(super.dmap, super.params.max_dno);
         inode_sync(root_inode);
     }
     dentry_restore(root, 0);

@@ -89,7 +89,7 @@ int fs_mkdir(const char* path, mode_t mode) {
 
 	inode_alloc(inode);
 	dentry_register(dir, dentry);
-	inode->dir_cnt++;
+	dentry->self->dir_cnt++;
 	
 	return ERROR_NONE;
 }
@@ -112,7 +112,8 @@ int fs_getattr(const char* path, struct stat * fs_stat) {
 		fs_stat->st_size = dentry->self->dir_cnt * sizeof(struct fs_dentry_d);
 	}
 	if (dentry->ftype == FT_REG) {
-		// TODO: 
+		fs_stat->st_mode = S_IFREG | FS_DEFAULT_PERM;
+		fs_stat->st_size = dentry->self->size;
 	}
 
 	fs_stat->st_nlink = 1;
@@ -175,7 +176,23 @@ int fs_readdir(const char * path, void * buf, fuse_fill_dir_t filler, off_t offs
  */
 int fs_mknod(const char* path, mode_t mode, dev_t dev) {
 	/* TODO: 解析路径，并创建相应的文件 */
-	return 0;
+	struct fs_dentry* dentry;
+	if (dentry_lookup(path, &dentry) == 0) {
+		return ERROR_EXISTS;
+	}
+	if (dentry->ftype != FT_DIR) {
+		return ERROR_NOTFOUND;
+	}
+	struct fs_dentry* new_file = dentry_create(get_fname(path), FT_REG);
+	struct fs_inode* inode = inode_create();
+	inode->ino = bitmap_alloc(super.imap, super.params.max_ino);
+	dentry_bind(new_file, inode);
+
+	inode_alloc(dentry->self);
+	dentry_register(new_file, dentry);
+
+	dentry->self->dir_cnt++;
+	return ERROR_NONE;
 }
 
 /**

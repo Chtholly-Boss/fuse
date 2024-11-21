@@ -34,6 +34,13 @@ struct fs_inode* inode_create()
     inode->dir_cnt = 0;
     inode->self = NULL;
     inode->childs = NULL;
+    inode->dno_dir = -1;
+
+    inode->size = 0;
+    for (int i = 0; i < MAX_BLOCK_PER_INODE; i++) {
+        inode->dno_reg[i] = -1;
+    }
+    memset(inode->data, 0, sizeof(inode->data));
 
     return inode;
 }
@@ -46,7 +53,11 @@ void dentry_bind(struct fs_dentry* dentry, struct fs_inode* inode)
     dentry->self = inode;
     inode->self = dentry;
 
-    dentry->ino = inode->ino;
+    if (inode->ino == -1) {
+        inode->ino = dentry->ino;
+    } else {
+        dentry->ino = inode->ino;
+    }
 }
 
 /**
@@ -147,17 +158,23 @@ int dentry_lookup(char* path, struct fs_dentry** dentry)
 
     char *fname;
 
-    int levels = get_path_level(path);
-    fname = strtok(path, "/");
+    char* path_bak = strdup(path);
+
+    int levels = get_path_level(path_bak);
+    fname = strtok(path_bak, "/");
 
     for (int i = 0; i < levels; i++) {
         // Find fname in ptr's subdirecties
         ptr = dentry_find(ptr->self->childs, fname);
         if (ptr == NULL) {
-            return -1;
+            return ERROR_NOTFOUND;
         }
         *dentry = ptr;
         fname = strtok(NULL, "/");
+    }
+    if (ptr->self == NULL) {
+        // TODO: Restore
+        dentry_restore(ptr, ptr->ino);
     }
     return 0;
 }
@@ -171,8 +188,9 @@ int inode_sync(struct fs_inode* inode)
 
     inode_d.ino = inode->ino;
     inode_d.dir_cnt = inode->dir_cnt;
-    inode_d.dno = inode->dno;
-
+    inode_d.dno_dir = inode->dno_dir;
+    inode_d.size = inode->size;
+    memcpy(inode_d.dno_reg, inode->dno_reg, sizeof(inode->dno_reg));
     // Write inode to disk
     disk_write(
         (super.inodes_off + inode->ino * sizeof(struct fs_inode_d)),
@@ -183,7 +201,7 @@ int inode_sync(struct fs_inode* inode)
         // Write dentry to disk
         struct fs_dentry* child = inode->childs;
         struct fs_dentry_d child_d;
-        int offset = super.data_off + inode->dno * super.params.size_block;
+        int offset = super.data_off + inode->dno_dir * super.params.size_block;
         while (child != NULL) {
             memcpy(child_d.name, child->name, MAX_NAME_LEN);
             child_d.ino = child->ino;
@@ -197,6 +215,18 @@ int inode_sync(struct fs_inode* inode)
 
             child = child->next;
             offset += sizeof(struct fs_dentry_d);
+        }
+    }
+
+    if (inode->self->ftype == FT_REG) {
+        for (int i = 0; i < MAX_BLOCK_PER_INODE; i++) {
+            if (inode->dno_reg[i] != -1) {
+                disk_write(
+                    super.data_off + inode->dno_reg[i] * super.params.size_block,
+                    inode->data[i],
+                    sizeof(inode->data[i])
+                );
+            }
         }
     }
     return ERROR_NONE;
@@ -219,14 +249,15 @@ int dentry_restore(struct fs_dentry* dentry, int ino)
     inode->self = dentry;
     inode->ino = inode_d.ino;
     inode->dir_cnt = inode_d.dir_cnt;
-    inode->dno = inode_d.dno;
+    inode->dno_dir = inode_d.dno_dir;
+    memcpy(inode->dno_reg, inode_d.dno_reg, sizeof(inode->dno_reg));
     inode->childs = NULL;
 
     dentry->self = inode;
     dentry->ino = inode_d.ino;
     
     if (dentry->ftype == FT_DIR) {
-        int offset = super.data_off + inode->dno * super.params.size_block;
+        int offset = super.data_off + inode->dno_dir * super.params.size_block;
 
         struct fs_dentry_d child_d;
         struct fs_dentry* child;
@@ -236,11 +267,12 @@ int dentry_restore(struct fs_dentry* dentry, int ino)
             child = dentry_create(child_d.name, child_d.ftype);
             child->ino = child_d.ino;
 
-            dentry_bind(child, inode_create());
-
             dentry_register(child, dentry); // register child to parent
         }
+    }
 
+    if (dentry->ftype == FT_REG) {
+        // TODO: Restore data
     }
 }
 
@@ -252,8 +284,8 @@ void inode_alloc(struct fs_inode* inode)
 {
     struct fs_dentry* dentry = inode->self;
     if (dentry->ftype == FT_DIR) {
-        if (inode->childs == NULL) {
-            inode->dno = bitmap_alloc(super.dmap, super.params.max_dno);
+        if (inode->childs == NULL && inode->dno_dir == -1) {
+            inode->dno_dir = bitmap_alloc(super.dmap, super.params.max_dno);
         }
     }
 }

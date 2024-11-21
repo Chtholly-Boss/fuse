@@ -4,6 +4,7 @@
 #include "disk.h"
 
 #define MAX_NAME_LEN    128     
+#define MAX_BLOCK_PER_INODE  4
 typedef enum file_type {
     FT_REG,
     FT_DIR,
@@ -32,12 +33,17 @@ struct fs_super {
 
 struct fs_inode {
     uint32_t ino;
+
     // * Directory Structure *
     int dir_cnt; // number of sub dentries
     struct fs_dentry *self; 
     struct fs_dentry *childs; // linked list of sub dentries
-    // * Data Storage *
-    uint32_t dno; // data block number
+    uint32_t dno_dir; // data block number
+
+    // * Regular File Structure *
+    int size;
+    uint8_t *data[MAX_BLOCK_PER_INODE];
+    uint32_t dno_reg[MAX_BLOCK_PER_INODE];
 };
 
 struct fs_dentry {
@@ -55,9 +61,11 @@ struct fs_inode_d {
     uint32_t ino;
     // * Directory Structure *
     int dir_cnt; // number of sub dentries
-
-    // * Data Storage *
-    uint32_t dno; // data block number
+    uint32_t dno_dir; // data block number
+    
+    // * Regular File Structure *
+    int size;
+    uint32_t dno_reg[MAX_BLOCK_PER_INODE];
 };
 
 struct fs_dentry_d {
