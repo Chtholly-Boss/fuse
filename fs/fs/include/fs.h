@@ -55,6 +55,8 @@ struct fs_inode *inode_create();
 void dentry_bind(struct fs_dentry *dentry, struct fs_inode *inode);
 void dentry_register(struct fs_dentry *dentry, struct fs_dentry *parent);
 char *get_fname(char *path);
+int file_read(struct fs_inode* file, int offset, void *buf, int size);
+int file_write(struct fs_inode* file, int offset, void *buf, int size);
 
 struct fs_dentry *dentries_find(struct fs_dentry *dentries, char *fname);
 struct fs_dentry *dentry_get(struct fs_dentry *dentries, int index);

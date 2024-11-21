@@ -27,17 +27,17 @@ static struct fuse_operations operations = {
 	.getattr = fs_getattr,				 /* 获取文件属性，类似stat，必须完成 */
 	.readdir = fs_readdir,				 /* 填充dentrys */
 	.mknod = fs_mknod,					 /* 创建文件，touch相关 */
-	.write = NULL,								  	 /* 写入文件 */
-	.read = NULL,								  	 /* 读文件 */
+	.write = fs_write,								  	 /* 写入文件 */
+	.read = fs_read,								  	 /* 读文件 */
 	.utimens = fs_utimens,				 /* 修改时间，忽略，避免touch报错 */
-	.truncate = NULL,						  		 /* 改变文件大小 */
+	.truncate = fs_truncate,						  		 /* 改变文件大小 */
 	.unlink = NULL,							  		 /* 删除文件 */
-	.rmdir	= NULL,							  		 /* 删除目录， rm -r */
-	.rename = NULL,							  		 /* 重命名，mv */
+	.rmdir	= fs_rmdir,							  		 /* 删除目录， rm -r */
+	.rename = fs_rename,							  		 /* 重命名，mv */
 
-	.open = NULL,							
-	.opendir = NULL,
-	.access = NULL
+	.open = fs_open,							
+	.opendir = fs_opendir,
+	.access = fs_access
 };
 /******************************************************************************
 * SECTION: 必做函数实现
@@ -49,7 +49,6 @@ static struct fuse_operations operations = {
  * @return void*
  */
 void* fs_init(struct fuse_conn_info * conn_info) {
-	// * Already Done
 	disk_mount();
 	return NULL;
 }
@@ -61,7 +60,6 @@ void* fs_init(struct fuse_conn_info * conn_info) {
  * @return void
  */
 void fs_destroy(void* p) {
-	// * Already Done
 	disk_umount();
 	return;
 }
@@ -74,7 +72,6 @@ void fs_destroy(void* p) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_mkdir(const char* path, mode_t mode) {
-	// * Already Done
 	struct fs_dentry* dentry;
 	if (dentry_lookup(path, &dentry) == 0) {
 		return ERROR_EXISTS;
@@ -102,7 +99,6 @@ int fs_mkdir(const char* path, mode_t mode) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_getattr(const char* path, struct stat * fs_stat) {
-	/* TODO: 解析路径，获取Inode，填充fs_stat，可参考/fs/simplefs/sfs.c的sfs_getattr()函数实现 */
 	struct fs_dentry* dentry;
 	if (dentry_lookup(path, &dentry) != 0) {
 		return ERROR_NOTFOUND;
@@ -152,7 +148,6 @@ int fs_getattr(const char* path, struct stat * fs_stat) {
 int fs_readdir(const char * path, void * buf, fuse_fill_dir_t filler, off_t offset,
 			    		 struct fuse_file_info * fi)
 {
-	// * already done
 	struct fs_dentry* dentry;
 	if (dentry_lookup(path, &dentry) != 0) {
 		return ERROR_NOTFOUND;
@@ -175,7 +170,6 @@ int fs_readdir(const char * path, void * buf, fuse_fill_dir_t filler, off_t offs
  * @return int 0成功，否则返回对应错误号
  */
 int fs_mknod(const char* path, mode_t mode, dev_t dev) {
-	/* TODO: 解析路径，并创建相应的文件 */
 	struct fs_dentry* dentry;
 	if (dentry_lookup(path, &dentry) == 0) {
 		return ERROR_EXISTS;
@@ -221,7 +215,23 @@ int fs_utimens(const char* path, const struct timespec tv[2]) {
  */
 int fs_write(const char* path, const char* buf, size_t size, off_t offset,
 		        struct fuse_file_info* fi) {
-	/* 选做 */
+	struct fs_dentry* file;
+	if (dentry_lookup(path, &file) != 0) {
+		return ERROR_NOTFOUND;
+	}
+	if (file->ftype != FT_REG) {
+		return ERROR_ISDIR;
+	}
+	struct fs_inode* inode = file->self;
+	// TODO: Write to inode
+
+	if (inode->size < offset) {
+		return ERROR_SEEK;
+	}
+
+	file_write(inode, offset, buf, size);
+	
+	inode->size = offset + size > inode->size ? offset + size : inode->size;
 	return size;
 }
 
@@ -237,7 +247,16 @@ int fs_write(const char* path, const char* buf, size_t size, off_t offset,
  */
 int fs_read(const char* path, char* buf, size_t size, off_t offset,
 		       struct fuse_file_info* fi) {
-	/* 选做 */
+	struct fs_dentry* file;
+	if (dentry_lookup(path, &file) != 0) {
+		return ERROR_NOTFOUND;
+	}
+	if (file->ftype != FT_REG) {
+		return ERROR_ISDIR;
+	}
+	struct fs_inode* inode = file->self;
+	// TODO: Read from inode
+	file_read(inode, offset, buf, size);	
 	return size;			   
 }
 
@@ -290,8 +309,7 @@ int fs_rename(const char* from, const char* to) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_open(const char* path, struct fuse_file_info* fi) {
-	/* 选做 */
-	return 0;
+	return ERROR_NONE;
 }
 
 /**
@@ -302,8 +320,7 @@ int fs_open(const char* path, struct fuse_file_info* fi) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_opendir(const char* path, struct fuse_file_info* fi) {
-	/* 选做 */
-	return 0;
+	return ERROR_NONE;
 }
 
 /**
@@ -314,8 +331,16 @@ int fs_opendir(const char* path, struct fuse_file_info* fi) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_truncate(const char* path, off_t offset) {
-	/* 选做 */
-	return 0;
+	struct fs_dentry* file;
+	if (dentry_lookup(path, &file) != 0) {
+		return ERROR_NOTFOUND;
+	}
+	if (file->ftype != FT_REG) {
+		return ERROR_ISDIR;
+	}
+	struct fs_inode* inode = file->self;
+	inode->size = offset;
+	return ERROR_NONE;
 }
 
 
@@ -332,8 +357,19 @@ int fs_truncate(const char* path, off_t offset) {
  * @return int 0成功，否则返回对应错误号
  */
 int fs_access(const char* path, int type) {
-	/* 选做: 解析路径，判断是否存在 */
-	return 0;
+	struct fs_dentry* dentry;
+	int fail = 0;
+	switch (type)
+	{
+		case R_OK:
+		case W_OK:
+		case X_OK:
+			fail = 0; break;
+		case F_OK:
+			fail = dentry_lookup(path, &dentry); break;
+	}
+
+	return fail ? ERROR_ACCESS : ERROR_NONE;
 }	
 /******************************************************************************
 * SECTION: FUSE入口

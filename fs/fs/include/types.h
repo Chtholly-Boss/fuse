@@ -16,7 +16,6 @@ struct custom_options {
 
 struct fs_super {
     int      fd;
-    /* TODO: Define yourself */
     DiskParam params;
 
     uint32_t super_off;

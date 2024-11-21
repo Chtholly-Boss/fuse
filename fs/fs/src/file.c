@@ -2,6 +2,9 @@
 
 extern struct fs_super super;
 
+#define BLK_ROUND_DOWN(off)     ROUND_DOWN(off,(super.params.size_block))
+#define BLK_ROUND_UP(off)      ROUND_UP(off,(super.params.size_block))
+
 /**
  * @brief Create an In-Memory empty dentry, no inode binded
  */
@@ -173,7 +176,6 @@ int dentry_lookup(char* path, struct fs_dentry** dentry)
         fname = strtok(NULL, "/");
     }
     if (ptr->self == NULL) {
-        // TODO: Restore
         dentry_restore(ptr, ptr->ino);
     }
     return 0;
@@ -217,18 +219,6 @@ int inode_sync(struct fs_inode* inode)
             offset += sizeof(struct fs_dentry_d);
         }
     }
-
-    if (inode->self->ftype == FT_REG) {
-        for (int i = 0; i < MAX_BLOCK_PER_INODE; i++) {
-            if (inode->dno_reg[i] != -1) {
-                disk_write(
-                    super.data_off + inode->dno_reg[i] * super.params.size_block,
-                    inode->data[i],
-                    sizeof(inode->data[i])
-                );
-            }
-        }
-    }
     return ERROR_NONE;
 }
 
@@ -249,9 +239,11 @@ int dentry_restore(struct fs_dentry* dentry, int ino)
     inode->self = dentry;
     inode->ino = inode_d.ino;
     inode->dir_cnt = inode_d.dir_cnt;
+    inode->childs = NULL;
+
+    inode->size = inode_d.size;
     inode->dno_dir = inode_d.dno_dir;
     memcpy(inode->dno_reg, inode_d.dno_reg, sizeof(inode->dno_reg));
-    inode->childs = NULL;
 
     dentry->self = inode;
     dentry->ino = inode_d.ino;
@@ -270,10 +262,6 @@ int dentry_restore(struct fs_dentry* dentry, int ino)
             dentry_register(child, dentry); // register child to parent
         }
     }
-
-    if (dentry->ftype == FT_REG) {
-        // TODO: Restore data
-    }
 }
 
 /**
@@ -288,4 +276,88 @@ void inode_alloc(struct fs_inode* inode)
             inode->dno_dir = bitmap_alloc(super.dmap, super.params.max_dno);
         }
     }
+}
+
+/**
+ * @brief Read data from file
+ */
+int file_read(struct fs_inode* file, int offset, void *buf, int size)
+{
+    int io_size = super.params.size_block;
+
+    int offset_rounded = BLK_ROUND_DOWN(offset);
+    int size_rounded = BLK_ROUND_UP(size);
+
+    uint8_t* buffer = (uint8_t*)malloc(size_rounded);
+    uint8_t* cur = buffer;
+
+    int blk_ptr = offset_rounded / io_size;
+
+    while (size_rounded > 0) {
+        // ! Every block read from disk
+        // ! may cause performance issue
+        if (file->dno_reg[blk_ptr] == -1) {
+            memset(cur, 0, io_size);
+        } else {
+            disk_read(
+                super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+                cur,
+                io_size
+            );
+        }
+        cur += io_size;
+        size_rounded -= io_size;
+        blk_ptr++;
+    }
+
+    int bias = offset - offset_rounded;
+    memcpy(buf, buffer + bias, size);
+    free(buffer);
+
+    return ERROR_NONE;
+}
+
+/**
+ * @brief Write data to file
+ */
+int file_write(struct fs_inode* file, int offset, void *buf, int size)
+{
+    int io_size = super.params.size_block;
+
+    int offset_rounded = BLK_ROUND_DOWN(offset);
+    int size_rounded = BLK_ROUND_UP(size);
+
+    int blk_start = offset_rounded / io_size;
+    int blk_ptr = blk_start;
+
+    uint8_t* buffer = (uint8_t*)malloc(size_rounded);
+
+    for (int i = 0; i < size_rounded; i += io_size) {
+        if (file->dno_reg[blk_ptr] == -1) {
+            memset(buffer + i, 0, io_size);
+        } else {
+            disk_read(
+                super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+                buffer + i,
+                io_size
+            );
+        }
+        blk_ptr++;
+    }
+
+    memcpy(buffer + offset_rounded - offset, buf, size);
+
+    blk_ptr = blk_start;
+    for (int i = 0; i < size_rounded; i += io_size) {
+        if (file->dno_reg[blk_ptr] == -1) {
+            file->dno_reg[blk_ptr] = bitmap_alloc(super.dmap, super.params.max_dno);
+        }
+        disk_write(
+            super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+            buffer + i,
+            io_size
+        );
+        blk_ptr++;
+    }
+    return ERROR_NONE;
 }

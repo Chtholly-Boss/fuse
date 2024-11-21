@@ -85,9 +85,9 @@ int disk_mount() {
         super_d.param.size_io = super.params.size_io;
         super_d.param.size_disk = super.params.size_disk;
         super_d.param.size_block = super.params.size_block;
-        super_d.param.size_usage = 0; // TODO
-        super_d.param.max_ino = 1000; // TODO
-        super_d.param.max_dno = 4000; // TODO
+        super_d.param.size_usage = 0; 
+        super_d.param.max_ino = 1000; 
+        super_d.param.max_dno = 4000; 
         
         super_d.super.offset = 0;
         super_d.super.blocks = 1;
@@ -99,10 +99,10 @@ int disk_mount() {
         super_d.dmap.blocks = 1;
 
         super_d.inodes.offset = super_d.dmap.offset + super_d.dmap.blocks * super_d.param.size_block;
-        super_d.inodes.blocks = 64; // TODO
+        super_d.inodes.blocks = 64; 
         
         super_d.data.offset = super_d.inodes.offset + super_d.inodes.blocks * super_d.param.size_block;
-        super_d.data.blocks = 4096 - super_d.super.blocks - super_d.imap.blocks - super_d.dmap.blocks - super_d.inodes.blocks; // TODO
+        super_d.data.blocks = 4096 - super_d.super.blocks - super_d.imap.blocks - super_d.dmap.blocks - super_d.inodes.blocks; 
     }
 
     memcpy(&super.params, &super_d.param, sizeof(DiskParam));
