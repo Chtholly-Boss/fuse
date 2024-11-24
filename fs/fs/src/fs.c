@@ -49,8 +49,7 @@ static struct fuse_operations operations = {
  * @return void*
  */
 void* fs_init(struct fuse_conn_info * conn_info) {
-	disk_mount();
-	return NULL;
+	return disk_mount();
 }
 
 /**
@@ -61,7 +60,6 @@ void* fs_init(struct fuse_conn_info * conn_info) {
  */
 void fs_destroy(void* p) {
 	disk_umount();
-	return;
 }
 
 /**

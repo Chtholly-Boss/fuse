@@ -32,10 +32,10 @@ struct fs_super {
 
 struct fs_inode {
     uint32_t ino;
+    struct fs_dentry *self; 
 
     // * Directory Structure *
     int dir_cnt; // number of sub dentries
-    struct fs_dentry *self; 
     struct fs_dentry *childs; // linked list of sub dentries
     uint32_t dno_dir; // data block number
 
@@ -47,12 +47,13 @@ struct fs_inode {
 struct fs_dentry {
     FileType ftype;
     char     name[MAX_NAME_LEN];
+
     uint32_t ino;
+    struct fs_inode *self;
 
     struct fs_dentry *parent;
     struct fs_dentry *next;
 
-    struct fs_inode *self;
 };
 
 struct fs_inode_d {

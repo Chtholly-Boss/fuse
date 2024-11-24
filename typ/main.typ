@@ -1,4 +1,5 @@
 #import "@preview/numbly:0.1.0":numbly
+// TODO: 设置代码块样式
 
 #set page(
   header: context [
@@ -16,8 +17,10 @@
 
 // Set the numbering style for headings. {level: format}
 #set heading(numbering: numbly(
-  "{1: 一、}", 
-  "{2: 1. }"
+  "{1:一、}", 
+  "{2:1}", 
+  "{2:1}.{3}",
+  ""
 ))
 
 #include "cover.typ"

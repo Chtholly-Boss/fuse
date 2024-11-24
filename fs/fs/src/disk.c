@@ -62,6 +62,173 @@ int disk_write(int offset, void *in_content, int size) {
 }
 
 /**
+ * @brief Sync inode to disk
+ */
+int inode_sync(struct fs_inode* inode)
+{
+    struct fs_inode_d inode_d;
+
+    inode_d.ino = inode->ino;
+    inode_d.dir_cnt = inode->dir_cnt;
+    inode_d.dno_dir = inode->dno_dir;
+    inode_d.size = inode->size;
+    memcpy(inode_d.dno_reg, inode->dno_reg, sizeof(inode->dno_reg));
+    // Write inode to disk
+    disk_write(
+        (super.inodes_off + inode->ino * sizeof(struct fs_inode_d)),
+        &inode_d,
+        sizeof(struct fs_inode_d)
+    );
+    if (inode->self->ftype == FT_DIR) {
+        // Write dentry to disk
+        struct fs_dentry* child = inode->childs;
+        struct fs_dentry_d child_d;
+        int offset = super.data_off + inode->dno_dir * super.params.size_block;
+        while (child != NULL) {
+            memcpy(child_d.name, child->name, MAX_NAME_LEN);
+            child_d.ino = child->ino;
+            child_d.ftype = child->ftype;
+
+            disk_write(offset, &child_d, sizeof(struct fs_dentry_d));
+
+            if (child->self != NULL) {
+                inode_sync(child->self);
+            }
+
+            child = child->next;
+            offset += sizeof(struct fs_dentry_d);
+        }
+    }
+    return ERROR_NONE;
+}
+
+/**
+ * @brief Restore dentry from disk
+ */
+int dentry_restore(struct fs_dentry* dentry, int ino)
+{
+    struct fs_inode_d inode_d;
+
+    disk_read(
+        (super.inodes_off + ino * sizeof(struct fs_inode_d)),
+        &inode_d,
+        sizeof(struct fs_inode_d)
+    );
+
+    struct fs_inode* inode = (struct fs_inode*)malloc(sizeof(struct fs_inode));
+    inode->self = dentry;
+    inode->ino = inode_d.ino;
+    inode->dir_cnt = inode_d.dir_cnt;
+    inode->childs = NULL;
+
+    inode->size = inode_d.size;
+    inode->dno_dir = inode_d.dno_dir;
+    memcpy(inode->dno_reg, inode_d.dno_reg, sizeof(inode->dno_reg));
+
+    dentry->self = inode;
+    dentry->ino = inode_d.ino;
+    
+    if (dentry->ftype == FT_DIR) {
+        int offset = super.data_off + inode->dno_dir * super.params.size_block;
+
+        struct fs_dentry_d child_d;
+        struct fs_dentry* child;
+
+        for (int i = 0; i < inode->dir_cnt; i++) {
+            disk_read(offset + i * sizeof(struct fs_dentry_d), &child_d, sizeof(struct fs_dentry_d));
+            child = dentry_create(child_d.name, child_d.ftype);
+            child->ino = child_d.ino;
+
+            dentry_register(child, dentry); // register child to parent
+        }
+    }
+}
+
+/**
+ * @brief Read data from file
+ */
+int file_read(struct fs_inode* file, int offset, void *buf, int size)
+{
+    int io_size = super.params.size_block;
+
+    int offset_rounded = BLK_ROUND_DOWN(offset);
+    int size_rounded = BLK_ROUND_UP(size);
+
+    uint8_t* buffer = (uint8_t*)malloc(size_rounded);
+    uint8_t* cur = buffer;
+
+    int blk_ptr = offset_rounded / io_size;
+
+    while (size_rounded > 0) {
+        // ! Every block read from disk
+        // ! may cause performance issue
+        if (file->dno_reg[blk_ptr] == -1) {
+            memset(cur, 0, io_size);
+        } else {
+            disk_read(
+                super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+                cur,
+                io_size
+            );
+        }
+        cur += io_size;
+        size_rounded -= io_size;
+        blk_ptr++;
+    }
+
+    int bias = offset - offset_rounded;
+    memcpy(buf, buffer + bias, size);
+    free(buffer);
+
+    return ERROR_NONE;
+}
+
+/**
+ * @brief Write data to file
+ */
+int file_write(struct fs_inode* file, int offset, void *buf, int size)
+{
+    int io_size = super.params.size_block;
+
+    int offset_rounded = BLK_ROUND_DOWN(offset);
+    int size_rounded = BLK_ROUND_UP(size);
+
+    int blk_start = offset_rounded / io_size;
+    int blk_ptr = blk_start;
+
+    uint8_t* buffer = (uint8_t*)malloc(size_rounded);
+
+    for (int i = 0; i < size_rounded; i += io_size) {
+        if (file->dno_reg[blk_ptr] == -1) {
+            memset(buffer + i, 0, io_size);
+        } else {
+            disk_read(
+                super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+                buffer + i,
+                io_size
+            );
+        }
+        blk_ptr++;
+    }
+
+    memcpy(buffer + offset_rounded - offset, buf, size);
+
+    blk_ptr = blk_start;
+    for (int i = 0; i < size_rounded; i += io_size) {
+        if (file->dno_reg[blk_ptr] == -1) {
+            file->dno_reg[blk_ptr] = bitmap_alloc(super.dmap, super.params.max_dno);
+        }
+        disk_write(
+            super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+            buffer + i,
+            io_size
+        );
+        blk_ptr++;
+    }
+    return ERROR_NONE;
+}
+
+/**
  * @brief mount disk
  */
 int disk_mount() {

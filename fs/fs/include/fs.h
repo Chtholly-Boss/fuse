@@ -56,22 +56,25 @@ struct fs_inode *inode_create();
 void dentry_bind(struct fs_dentry *dentry, struct fs_inode *inode);
 void dentry_register(struct fs_dentry *dentry, struct fs_dentry *parent);
 void dentry_unregister(struct fs_dentry* dentry);
-char *get_fname(char *path);
-int file_read(struct fs_inode* file, int offset, void *buf, int size);
-int file_write(struct fs_inode* file, int offset, void *buf, int size);
-
-struct fs_dentry *dentries_find(struct fs_dentry *dentries, char *fname);
 struct fs_dentry *dentry_get(struct fs_dentry *dentries, int index);
-int dentry_lookup(char *path, struct fs_dentry **dentry);
-
-int inode_sync(struct fs_inode *inode);
-int dentry_restore(struct fs_dentry *dentry, int ino);
+int dentry_delete(struct fs_dentry* dentry);
 void inode_alloc(struct fs_inode *inode);
 
-int dentry_delete(struct fs_dentry* dentry);
+char *get_fname(char *path);
+struct fs_dentry *dentries_find(struct fs_dentry *dentries, char *fname);
+int dentry_lookup(char *path, struct fs_dentry **dentry);
+
+
 // * disk.c
 int disk_read(int offset, void *out_content, int size);
 int disk_write(int offset, void *in_content, int size);
+
+int file_read(struct fs_inode* file, int offset, void *buf, int size);
+int file_write(struct fs_inode* file, int offset, void *buf, int size);
+
+int inode_sync(struct fs_inode *inode);
+int dentry_restore(struct fs_dentry *dentry, int ino);
+
 int disk_mount();
 int disk_umount();
 
