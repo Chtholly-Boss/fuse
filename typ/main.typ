@@ -1,5 +1,20 @@
 #import "@preview/numbly:0.1.0":numbly
-// TODO: 设置代码块样式
+// 设置代码块样式
+#show raw: it => {
+  if it.block {
+    block(
+      fill: luma(95%),
+      radius: 5pt,
+      outset: 5pt, 
+      width: 100%,
+      )[#it]
+  } else {
+    it
+  }
+}
+
+// 设置链接样式
+#show link: underline
 
 #set page(
   header: context [

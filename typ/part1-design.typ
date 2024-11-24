@@ -190,7 +190,7 @@ Disk 为连续的数据块，每个数据块的大小为 BLOCK_SIZE。为了实�
 ==== `file_read` && `file_write` 
 通过调用 `disk_read` 与 `disk_write`，将文件数据同步到磁盘。
 
-如 @dentry_inode 所示，`inode` 结构体中存储了文件的数据块索引 `dno_reg[]`，因此，`file_read` 与 `file_write` 函数可以直接通过 `dno_reg[]` 找到文件的数据块，进行读写操作。
+`inode` 结构体中存储了文件的数据块索引 `dno_reg[]`，因此，`file_read` 与 `file_write` 函数可以直接通过 `dno_reg[]` 找到文件的数据块，进行读写操作。
 
 具体的实现思路与 `disk_read` 与 `disk_write` 类似：
 - 通过设置暂存区 `buf`，将对齐的数据块读入暂存区，再从暂存区写入目标地址。
