@@ -1,8 +1,8 @@
-#import "./utils.typ": *
+#import "../template.typ": *
 
 = 实验详细设计
 
-#hint[图文并茂地描述实验实现的所有功能和详细的设计方案及实验过程中的特色部分。]
+#quote[图文并茂地描述实验实现的所有功能和详细的设计方案及实验过程中的特色部分。]
 
 hitFuse 是一个基于 FUSE 的文件系统，支持以下功能：
 
@@ -10,15 +10,15 @@ hitFuse 是一个基于 FUSE 的文件系统，支持以下功能：
 - 读取和写入文件内容 `cat, echo ...`
 - 查看文件和目录的属性 `ls ...`
 
-该系统在设计上尽可能采用了模块化设计，于 `Simplefs` 的基础上更加明确地划分了具体的功能模块，并实现了对 FUSE 的封装，使得文件系统的实现更加简洁和高效。
+该系统在设计上尽可能采用了模块化设计，于 `Simplefs` 的基础上更加明确地划分了具体的功能模块，并实现了对 FUSE 常用功能的封装，使得文件系统的实现更加简洁和高效。
 
 == 总体设计方案
-#hint[详细阐述文件系统的总体设计思路，包括系统架构图和关键组件的说明]
+#quote[详细阐述文件系统的总体设计思路，包括系统架构图和关键组件的说明]
 
 hitFuse 的整体架构图如下：
 
 #figure(
-  image("./assets/arch.png"),
+  image("../assets/arch.png"),
   caption: "hitFuse 整体架构",
 )
 
@@ -32,15 +32,68 @@ hitFuse 的整体架构可以分为以下几个部分：
 
 == 数据结构说明
 
-本系统中涉及到的数据结构如下：
-
-- *Inode Bitmap*: 磁盘上 inode 的使用情况，用于维护 inode 的分配和释放。
-- *Data Bitmap*: 磁盘上数据块的使用情况，用于维护数据块的分配和释放。
-- *Dentry*: 目录项，包括文件名、文件类型等。
-- *Inode*: 文件或目录的元数据，包括其使用的数据块、大小、子目录等。
-- *Super Block*: 全局的元数据，包括文件系统的总大小、已使用空间、根目录等。
-- *Disk* : 磁盘，用于实际存储文件系统的数据。
-
+本系统中涉及到的数据结构对象如下：
+#grid(
+	columns: 3,
+	rows: 2, row-gutter: 1em,
+	DS(
+		name: "Inode Bitmap",
+		description: [磁盘上 inode 的使用情况，用于维护 inode 的分配和释放。],
+		funcs: [
+			- bitmap_init 
+			- bitmap_alloc 
+			- bitmap_clear 
+		]
+	), 
+	DS(
+		name: "Data Bitmap",
+		description: [磁盘上数据块的使用情况，用于维护数据块的分配和释放。],
+		funcs: [
+		-	 bitmap_init  
+		-	 bitmap_alloc 
+		-	 bitmap_clear 
+		]
+	),
+	DS(
+		name: "Dentry",
+		description: [目录项，包括文件名、文件类型等。],
+		funcs: [
+		-	dentry_create 
+		-	dentry_bind
+		-	dentry_register
+		-	dentry_unregister
+		-	dentry_get(index)
+		-	dentry_delete
+		-	dentry_lookup
+		]
+	),
+	DS(
+		name: "Inode",
+		description: [文件或目录的元数据，包括其使用的数据块、大小、子目录等。],
+		funcs: [
+		-	inode_create
+		-	inode_alloc
+		]
+	),
+	DS(
+		name: "Super Block",
+		description: [全局的元数据，包括文件系统的总大小、已使用空间、根目录等。],
+		funcs: [
+		]
+	),
+	DS(
+		name: "Disk",
+		description: [磁盘，用于实际存储文件系统的数据。],
+		funcs: [
+		-	disk_read
+		-	disk_write
+		-	disk_mount
+		-	disk_umount
+		-	inode_sync
+		-	dentry_restore
+		]
+	)
+)
 === Bitmap
 Bitmap 是一个位图，用于表示磁盘空间的使用情况。每个位表示一个磁盘块的使用情况，0 表示未使用，1 表示已使用。本系统中的数据位图包括 `Inode Bitmap` 和 `Data Bitmap`。
 
@@ -57,7 +110,7 @@ Bitmap 提供以下方法：
   在本实现中，仅通过对位图进行操作，标记相应的数据块可用。
 ]
 
-相应方法的实现均为 bit-level 操作，具体实现见代码，此处仅以 `bitmap_clear` 为例：
+相应方法的实现均为 bit-level 操作，以 `bitmap_clear` 为例：
 ```c
 void bitmap_clear(uint8_t *bitmap, uint32_t index) {
     uint32_t byte_index = index / 8;
@@ -123,6 +176,57 @@ struct fs_inode {
 - `dentry_get(index)`: 获取指定索引的子目录项
 - `dentry_delete`: 删除 `dentry`，递归清除位图上的对应位，标记为未使用
 - `inode_alloc`: 在磁盘上分配新的数据块用于存放 inode 的子目录项
+
+其中值得一提的是 `dentry_register` 与 `dentry_unregister`：
+```c 
+void dentry_register(struct fs_dentry* dentry, struct fs_dentry* parent)
+{
+    struct fs_inode* inode = parent->self;
+
+    if (inode->childs == NULL) {
+        inode->childs = dentry;
+    }
+    else {
+        dentry->next = inode->childs;
+        inode->childs = dentry;
+    }
+
+    dentry->parent = parent;
+}
+```
+可以看到，此处仅进行了简单的注册，将 `dentry` 添加到 `inode->childs` 链表的头部。
+
+该函数既可在创建新目录时调用，也可在从磁盘中重建 `dentry` 时调用。
+
+```c 
+void dentry_unregister(struct fs_dentry* dentry)
+{
+    struct fs_dentry* parent = dentry->parent;
+    struct fs_inode* inode = parent->self;
+
+    if (inode->childs == dentry) {
+        inode->childs = dentry->next;
+    }
+    else {
+        struct fs_dentry* ptr = inode->childs;
+        while (ptr->next != dentry) {
+            ptr = ptr->next;
+        }
+        ptr->next = dentry->next;
+    }
+
+    dentry->parent = NULL;
+    dentry->next = NULL;
+    
+    inode->dir_cnt--;
+}
+```
+
+该函数用于从父目录中移除 `dentry`，并递减 `inode->dir_cnt`。
+
+#design_choice[
+	在 register 时，我们并没有将父目录的 `dir_cnt` 增加，这是因为在从磁盘重建 `dentry` 时，我们用到了 `dir_cnt` 属性，为避免冲突，我们选择将该操作交由调用者处理。
+]
 
 === Path Resolution
 Path Resolution 是文件系统的一个重要功能，用于将用户输入的路径解析为对应的 `dentry`。通过前面所定义的数据结构，再加上以下的辅助函数：
@@ -192,15 +296,105 @@ Disk 为连续的数据块，每个数据块的大小为 BLOCK_SIZE。为了实�
 
 `inode` 结构体中存储了文件的数据块索引 `dno_reg[]`，因此，`file_read` 与 `file_write` 函数可以直接通过 `dno_reg[]` 找到文件的数据块，进行读写操作。
 
-具体的实现思路与 `disk_read` 与 `disk_write` 类似：
-- 通过设置暂存区 `buf`，将对齐的数据块读入暂存区，再从暂存区写入目标地址。
-- 主要的区别在于在 `file_write` 函数中需要实现 *lazy allocation*, 即当文件的数据块索引 `dno_reg[]` 中没有对应的数据块时，需要分配新的数据块，并将数据写入其中。
+读写逻辑如下图所示：
+#figure(
+	image("../assets/filerw.png", width: 80%),
+	caption: [
+		`file_read` 与 `file_write` 的读写逻辑，inode 中的 dno 与 dmap 中已分配的位图位一一对应，buffer 与已分配的数据块直接交互。
+	]
+)
+`file_write` 的具体实现如下：
+```c
+int file_write(struct fs_inode* file, int offset, void *buf, int size)
+{
+    int io_size = super.params.size_block;
+
+    int offset_rounded = BLK_ROUND_DOWN(offset);
+    int size_rounded = BLK_ROUND_UP(size);
+
+    int blk_start = offset_rounded / io_size;
+    int blk_ptr = blk_start;
+
+    uint8_t* buffer = (uint8_t*)malloc(size_rounded);
+
+    for (int i = 0; i < size_rounded; i += io_size) {
+        if (file->dno_reg[blk_ptr] == -1) {
+            memset(buffer + i, 0, io_size);
+        } else {
+            disk_read(
+                super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+                buffer + i,
+                io_size
+            );
+        }
+        blk_ptr++;
+    }
+
+    memcpy(buffer + offset_rounded - offset, buf, size);
+
+    blk_ptr = blk_start;
+    for (int i = 0; i < size_rounded; i += io_size) {
+        if (file->dno_reg[blk_ptr] == -1) {
+            file->dno_reg[blk_ptr] = bitmap_alloc(super.dmap, super.params.max_dno);
+        }
+        disk_write(
+            super.data_off + file->dno_reg[blk_ptr] * super.params.size_block,
+            buffer + i,
+            io_size
+        );
+        blk_ptr++;
+    }
+    return ERROR_NONE;
+}
+```
 
 ==== `inode_sync` && `dentry_restore`
 `inode_sync` 和 `dentry_restore` 主要用于同步文件系统的层次结构到磁盘。
 
 - `inode_sync` 将 `inode` 写入磁盘的索引节点区，同时，将 `inode` 的子目录项递归写入磁盘的数据块中。
 - `dentry_restore` 从磁盘的数据块中读取子目录项，并通过 `dentry_register` 将子目录项注册到父目录中。
+
+值得一提的是由于我们的文件读写采取直接与磁盘交互的方式，因此 `inode_sync` 不需要对文件进行同步，只需要同步 `inode` 即可。
+
+```c
+int inode_sync(struct fs_inode* inode)
+{
+    struct fs_inode_d inode_d;
+
+    inode_d.ino = inode->ino;
+    inode_d.dir_cnt = inode->dir_cnt;
+    inode_d.dno_dir = inode->dno_dir;
+    inode_d.size = inode->size;
+    memcpy(inode_d.dno_reg, inode->dno_reg, sizeof(inode->dno_reg));
+    // Write inode to disk
+    disk_write(
+        (super.inodes_off + inode->ino * sizeof(struct fs_inode_d)),
+        &inode_d,
+        sizeof(struct fs_inode_d)
+    );
+    if (inode->self->ftype == FT_DIR) {
+        // Write dentry to disk
+        struct fs_dentry* child = inode->childs;
+        struct fs_dentry_d child_d;
+        int offset = super.data_off + inode->dno_dir * super.params.size_block;
+        while (child != NULL) {
+            memcpy(child_d.name, child->name, MAX_NAME_LEN);
+            child_d.ino = child->ino;
+            child_d.ftype = child->ftype;
+
+            disk_write(offset, &child_d, sizeof(struct fs_dentry_d));
+
+            if (child->self != NULL) {
+                inode_sync(child->self);
+            }
+
+            child = child->next;
+            offset += sizeof(struct fs_dentry_d);
+        }
+    }
+    return ERROR_NONE;
+}
+```
 
 ==== `disk_mount` && `disk_umount` <mount>
 
@@ -216,7 +410,7 @@ Disk 为连续的数据块，每个数据块的大小为 BLOCK_SIZE。为了实�
   - 递归同步根目录到磁盘
 
 == 功能详细说明
-#hint[每个功能点的详细说明（关键的数据结构、核心代码、流程等）]
+#quote[每个功能点的详细说明（关键的数据结构、核心代码、流程等）]
 
 建立在上述数据结构的基础上，各功能的实现如下：
 
@@ -355,7 +549,7 @@ int fs_readdir(const char * path, void * buf, fuse_fill_dir_t filler, off_t offs
 以上为本实验必做部分的实现，附加功能在实验特色中进行介绍。
 
 == 实验特色
-#hint[实验中你认为自己实现的比较有特色的部分，包括设计思路、实现方法和预期效果。]
+#quote[实验中你认为自己实现的比较有特色的部分，包括设计思路、实现方法和预期效果。]
 
 本系统的特色在于一定程度的模块化，在设计上适当采用了 OOP 思想。与 Simplefs 中笼统将所有操作都放在 `sfs.utils` 中不同，本系统以各操作的对象为主体，在其上抽象出了一系列通用操作，使得代码更加清晰、简洁、易扩展。
 

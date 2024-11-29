@@ -1,7 +1,7 @@
-#import "./utils.typ":*
+#import "../template.typ":*
 
 = 参考资料
-#hint[实验过程中查找的信息和资料]
+#quote[实验过程中查找的信息和资料]
 
 [1] lab5: 基于FUSE的青春版EXT2文件系统 #link("https://os-labs.pages.dev/lab5/part1/")
 
@@ -12,4 +12,3 @@
 #clues.warning[
   Don't Blame Me, 没参考什么文献，格式较为随意
 ]
-
