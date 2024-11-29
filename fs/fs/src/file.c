@@ -2,8 +2,6 @@
 
 extern struct fs_super super;
 
-#define BLK_ROUND_DOWN(off)     ROUND_DOWN(off,(super.params.size_block))
-#define BLK_ROUND_UP(off)      ROUND_UP(off,(super.params.size_block))
 
 /**
  * @brief Create an In-Memory empty dentry, no inode binded

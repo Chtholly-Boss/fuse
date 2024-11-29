@@ -21,6 +21,11 @@
 #define ROUND_DOWN(value, round) ((value) % (round) == 0 ? (value) : ((value) / (round)) * (round))
 #define ROUND_UP(value, round) ((value) % (round) == 0 ? (value) : ((value) / (round) + 1) * (round))
 
+#define DISK_ROUND_DOWN(off) ROUND_DOWN(off, (super.params.size_io)) // 511 is the block size
+#define DISK_ROUND_UP(off) ROUND_UP(off, (super.params.size_io)) // 511 is the block size
+
+#define BLK_ROUND_DOWN(off)     ROUND_DOWN(off,(super.params.size_block))
+#define BLK_ROUND_UP(off)      ROUND_UP(off,(super.params.size_block))
 /******************************************************************************
  * SECTION: fs.c
  *******************************************************************************/

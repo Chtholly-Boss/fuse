@@ -1,8 +1,5 @@
 #include "../include/fs.h"
 
-#define DISK_ROUND_DOWN(off) ROUND_DOWN(off, (super.params.size_io)) // 511 is the block size
-#define DISK_ROUND_UP(off) ROUND_UP(off, (super.params.size_io)) // 511 is the block size
-
 extern struct fs_super super;
 extern struct custom_options fs_options;			 /* 全局选项 */
 
